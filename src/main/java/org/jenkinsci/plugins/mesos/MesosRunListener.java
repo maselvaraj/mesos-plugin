@@ -1,6 +1,3 @@
-/**
- * 
- */
 package org.jenkinsci.plugins.mesos;
 
 import hudson.Extension;
