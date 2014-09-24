@@ -1,4 +1,4 @@
-package org.jenkinssci.plugins.mesos.listener;
+package org.jenkinsci.plugins.mesos.listener;
 
 import hudson.Extension;
 import hudson.model.AbstractProject;
