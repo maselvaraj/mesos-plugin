@@ -1,5 +1,11 @@
-package org.jenkinsci.plugins.mesos;
+<<<<<<< HEAD:src/main/java/org/jenkinssci/plugins/mesos/listener/MesosRunListener.java
+/**
+ * 
+ */
 package org.jenkinssci.plugins.mesos.listener;
+=======
+package org.jenkinsci.plugins.mesos;
+>>>>>>> 3e7d6304993cb8824b29cf9bf67c9b62698471f3:src/main/java/org/jenkinsci/plugins/mesos/MesosRunListener.java
 
 import hudson.Extension;
 import hudson.model.AbstractBuild;
