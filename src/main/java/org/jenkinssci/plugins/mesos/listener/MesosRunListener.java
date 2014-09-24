@@ -1,7 +1,7 @@
 /**
  * 
  */
-package org.jenkinsci.plugins.mesos;
+package org.jenkinssci.plugins.mesos.listener;
 
 import hudson.Extension;
 import hudson.model.AbstractBuild;
@@ -13,6 +13,8 @@ import hudson.model.listeners.RunListener;
 
 import java.io.IOException;
 import java.util.logging.Logger;
+
+import org.jenkinsci.plugins.mesos.MesosSlave;
 
 @SuppressWarnings("rawtypes")
 @Extension
@@ -43,7 +45,7 @@ public class MesosRunListener extends RunListener<Run> {
       if (node instanceof MesosSlave) {
         try {
           String hostname = node.toComputer().getHostName();
-          listener.getLogger().println("Actual hostname of the Mesos slave : " + hostname);
+          listener.getLogger().println("Mesos slave(hostname): " + hostname);
         } catch (IOException e) {
           LOGGER.warning("IOException while trying to get hostname: " + e);
           e.printStackTrace();

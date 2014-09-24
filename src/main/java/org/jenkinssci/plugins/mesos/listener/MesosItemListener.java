@@ -1,4 +1,4 @@
-package org.jenkinsci.plugins.mesos;
+package org.jenkinssci.plugins.mesos.listener;
 
 import hudson.Extension;
 import hudson.model.AbstractProject;
@@ -18,8 +18,8 @@ import java.util.logging.Logger;
  * Listener for job operations/events (ex- create, update, delete etc.)
  */
 @Extension
-public class MesosListener  extends ItemListener {
-    private static Logger LOGGER = Logger.getLogger(MesosListener.class.getName());
+public class MesosItemListener  extends ItemListener {
+    private static Logger LOGGER = Logger.getLogger(MesosItemListener.class.getName());
 
     /**
      * listener for {@link Item} create
