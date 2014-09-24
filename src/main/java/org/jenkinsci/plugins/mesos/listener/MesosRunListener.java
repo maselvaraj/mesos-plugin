@@ -1,4 +1,3 @@
-package org.jenkinsci.plugins.mesos;
 package org.jenkinsci.plugins.mesos.listener;
 
 import hudson.Extension;
