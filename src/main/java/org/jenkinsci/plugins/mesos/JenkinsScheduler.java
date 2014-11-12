@@ -66,6 +66,7 @@ public class JenkinsScheduler implements Scheduler {
   private volatile MesosSchedulerDriver driver;
   private final String jenkinsMaster;
   private volatile MesosCloud mesosCloud;
+  private volatile boolean running;
   
   private static final Logger LOGGER = Logger.getLogger(JenkinsScheduler.class.getName());
 
@@ -82,6 +83,9 @@ public class JenkinsScheduler implements Scheduler {
   }
 
   public synchronized void init() {
+    // Update 'running' flag to true before starting the scheduler on a separate thread.
+    // This is to avoid race condition during provision of more than one slave with ondemand registration.
+	running = true;
     // Start the framework.
     new Thread(new Runnable() {
       @Override
@@ -105,6 +109,7 @@ public class JenkinsScheduler implements Scheduler {
         }
 
         driver = null;
+        running = false;
       }
     }).start();
   }
@@ -115,10 +120,11 @@ public class JenkinsScheduler implements Scheduler {
     } else {
 	  LOGGER.warning("Unable to stop Mesos driver:  driver is null.");
     }
+    running = false;
   }
 
   public synchronized boolean isRunning() {
-    return driver != null;
+    return running;
   }
 
   public synchronized void requestJenkinsSlave(Mesos.SlaveRequest request, Mesos.SlaveResult result) {
