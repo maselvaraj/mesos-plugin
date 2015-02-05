@@ -71,7 +71,8 @@ public class JenkinsScheduler implements Scheduler {
   private static final double JVM_MEM_OVERHEAD_FACTOR = 0.1;
 
   private static final String SLAVE_COMMAND_FORMAT =
-      "java -DHUDSON_HOME=jenkins -server -Xmx%dm %s -jar ${MESOS_SANDBOX-.}/slave.jar %s -jnlpUrl %s";
+      "java -DHUDSON_HOME=jenkins -server -Xmx%dm %s -jar ${MESOS_SANDBOX-.}/slave.jar %s %s -jnlpUrl %s";
+  private static final String JNLP_SECRET_FORMAT = "-secret %s";
 
   private Queue<Request> requests;
   private Map<TaskID, Result> results;
@@ -162,6 +163,15 @@ public class JenkinsScheduler implements Scheduler {
    */
   private String getJnlpUrl(String slaveName) {
     return joinPaths(joinPaths(joinPaths(jenkinsMaster, "computer"), slaveName), "slave-agent.jnlp");
+  }
+
+  /**
+   * @param slaveName
+   * @return the jnlp secret is the format -secret <secret>
+   */
+  private String getJnlpSecret(String slaveName) {
+	String jnlpSecret = jenkins.slaves.JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(slaveName);
+	return String.format(JNLP_SECRET_FORMAT, jnlpSecret);
   }
 
   private static String joinPaths(String prefix, String suffix) {
@@ -337,6 +347,7 @@ public class JenkinsScheduler implements Scheduler {
                     request.request.mem,
                     request.request.slaveInfo.getJvmArgs(),
                     request.request.slaveInfo.getJnlpArgs(),
+                    getJnlpSecret(request.request.slave.name),
                     getJnlpUrl(request.request.slave.name)))
         .addUris(
                 CommandInfo.URI.newBuilder().setValue(
