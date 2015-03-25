@@ -132,10 +132,12 @@ public class MesosCloud extends Cloud {
     this.onDemandRegistration = onDemandRegistration;
 
     JenkinsScheduler.SUPERVISOR_LOCK.lock();
-    try {
-      restartMesos();
-    } finally {
-      JenkinsScheduler.SUPERVISOR_LOCK.unlock();
+    if(!onDemandRegistration) {
+      try {
+        restartMesos();
+      } finally {
+        JenkinsScheduler.SUPERVISOR_LOCK.unlock();
+      }
     }
   }
 

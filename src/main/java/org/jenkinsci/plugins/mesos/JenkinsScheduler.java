@@ -170,8 +170,11 @@ public class JenkinsScheduler implements Scheduler {
    * @return the jnlp secret is the format -secret <secret>
    */
   private String getJnlpSecret(String slaveName) {
-	String jnlpSecret = jenkins.slaves.JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(slaveName);
-	return String.format(JNLP_SECRET_FORMAT, jnlpSecret);
+	String jnlpSecret = "";
+	if(Jenkins.getInstance().isUseSecurity()) {
+		jnlpSecret = String.format(JNLP_SECRET_FORMAT, jenkins.slaves.JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(slaveName));
+	}
+	return jnlpSecret;
   }
 
   private static String joinPaths(String prefix, String suffix) {
