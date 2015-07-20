@@ -1,17 +1,25 @@
 package org.jenkinsci.plugins.mesos;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.logging.Level;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.trilead.ssh2.log.Logger;
+
 import hudson.Extension;
+import hudson.model.AbstractProject;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Computer;
 import hudson.model.TaskListener;
+import hudson.model.TopLevelItem;
+import hudson.model.Queue.Item;
+import hudson.slaves.Cloud;
 import jenkins.model.Jenkins;
 
 /**
@@ -47,6 +55,10 @@ import jenkins.model.Jenkins;
 @Extension
 public class MesosCleanupThread extends AsyncPeriodicWork {
 
+    public static int QUEUE_EXPIRY_MINS = 5;
+
+    private static long lastSchedulerStop = System.currentTimeMillis();
+
     public MesosCleanupThread() {
         super("Mesos pending deletion slave cleanup");
     }
@@ -77,10 +89,10 @@ public class MesosCleanupThread extends AsyncPeriodicWork {
                 if (mesosSlave != null && mesosSlave.isPendingDelete()) {
                     final MesosComputer comp = (MesosComputer) c;
                     computersToDeleteBuilder.add(comp);
-                    logger.log(Level.INFO, "Marked " + comp.getName() + " for deletion");
+                    logger.log(Level.FINE, "Marked " + comp.getName() + " for deletion");
                     ListenableFuture<?> f = executor.submit(new Runnable() {
                         public void run() {
-                            logger.log(Level.INFO, "Deleting pending node " + comp.getName());
+                            logger.log(Level.FINE, "Deleting pending node " + comp.getName());
                             try {
                                 comp.getNode().terminate();
                             } catch (RuntimeException e) {
@@ -111,5 +123,76 @@ public class MesosCleanupThread extends AsyncPeriodicWork {
             }
 
         }
+
+        superviseScheduler(listener);
     }
+
+  @VisibleForTesting
+  private void superviseScheduler(TaskListener listener) {
+    Jenkins jenkins = Jenkins.getInstance();
+    Item[] items = jenkins.getQueue().getItems();
+    if (items == null) {
+      // No items in queue. So check and stop if any schedulers are running
+      stopRunningSchedulers(listener);
+    } else {
+      // First check if we have stopped scheduler in the past 5 mins
+      if (((System.currentTimeMillis() - lastSchedulerStop) > (MIN * QUEUE_EXPIRY_MINS))) {
+        for (Item item : items) {
+          // Check if there is an item in queue for more than 5 minutes
+          if ((System.currentTimeMillis() - item.getInQueueSince()) > (MIN * QUEUE_EXPIRY_MINS)) {
+            hudson.model.Label label = item.getAssignedLabel();
+            if (label != null) {
+              for (Cloud c : jenkins.clouds) {
+                if (c instanceof MesosCloud && c.canProvision(label)) {
+                  MesosCloud mesosCloud = (MesosCloud) c;
+                  if (mesosCloud.isOnDemandRegistration()
+                      && !isAnyBuildInProgress(jenkins)) {
+                    // Stopping the scheduler explicitly to make sure it
+                    // reconnects again
+                    logger.log(Level.WARNING,
+                        "Stopping scheduler, since a build was in queue for more than 5 mins ..."
+                            + item);
+                    lastSchedulerStop = System.currentTimeMillis();
+                    JenkinsScheduler.SUPERVISOR_LOCK.lock();
+                    Mesos.getInstance(mesosCloud).stopScheduler();
+                    JenkinsScheduler.SUPERVISOR_LOCK.unlock();
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @SuppressWarnings("rawtypes")
+  @VisibleForTesting
+  private boolean isAnyBuildInProgress(Jenkins jenkins) {
+    List<TopLevelItem> items = jenkins.getItems();
+    for (TopLevelItem item : items) {
+      if (item instanceof AbstractProject
+          && ((AbstractProject) item).isBuilding()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @VisibleForTesting
+  private void stopRunningSchedulers(TaskListener listener) {
+    Jenkins jenkins = Jenkins.getInstance();
+    for (Cloud cloud : jenkins.clouds) {
+      if (cloud instanceof MesosCloud) {
+        if (((MesosCloud) cloud).isOnDemandRegistration()) {
+          // Supervise if Mesos scheduler is running but if there are no builds
+          // in queue.
+          if (Mesos.getInstance((MesosCloud) cloud).isSchedulerRunning()
+              && jenkins.getQueue().isEmpty()) {
+            JenkinsScheduler.supervise();
+          }
+        }
+      }
+    }
+  }
 }
