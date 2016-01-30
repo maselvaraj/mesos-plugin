@@ -62,12 +62,12 @@ public class MesosComputerLauncher extends ComputerLauncher {
     // This might happen if the computer was offline when Jenkins was shutdown.
     // Since Jenkins persists its state, it tries to launch offline slaves when
     // it restarts.
-    if (!mesos.isSchedulerRunning()) {
-      LOGGER.warning("Not launching " + name +
-                     " because the Mesos Jenkins scheduler is not running");
-      computer.getNode().terminate();
-      return;
-    }
+//    if (!mesos.isSchedulerRunning()) {
+//      LOGGER.warning("Not launching " + name +
+//                     " because the Mesos Jenkins scheduler is not running");
+//      computer.getNode().terminate();
+//      return;
+//    }
 
     // Create the request.
     double cpus = computer.getNode().getCpus();

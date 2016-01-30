@@ -1,0 +1,10 @@
+{
+  "id": "success-slave",
+  "cmd": "sleep 1000",
+  "mem": 256,
+  "cpus": 0.5,
+  "instances": 1,
+   "uris": [
+  ]
+}
+

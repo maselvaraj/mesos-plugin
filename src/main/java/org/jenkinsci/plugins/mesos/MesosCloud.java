@@ -316,7 +316,8 @@ public class MesosCloud extends Cloud {
           try {
             LOGGER.fine("Checking if scheduler is running");
             if (!Mesos.getInstance(this).isSchedulerRunning()) {
-              restartMesos();
+              //restartMesos();
+              System.out.println("No restart");
             }
           } finally {
             JenkinsScheduler.SUPERVISOR_LOCK.unlock();

@@ -18,12 +18,15 @@ package org.jenkinsci.plugins.mesos;
 
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.JsonPrimitive;
+
 import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.util.Secret;
 
+import java.io.File;
+import java.io.FileReader;
 import java.lang.Math;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,7 +50,12 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
+import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos.Attribute;
 import org.apache.mesos.Protos.CommandInfo;
@@ -76,6 +84,9 @@ import org.apache.mesos.Protos.Volume;
 import org.apache.mesos.Protos.Volume.Mode;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
+import org.json.simple.JSONArray;
+import org.json.simple.parser.JSONParser;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 import com.google.protobuf.ByteString;
 
@@ -126,63 +137,63 @@ public class JenkinsScheduler implements Scheduler {
     // This is to ensure that isRunning() returns true even when the driver is not yet inside run().
     // This is important because MesosCloud.provision() starts a new framework whenever isRunning() is false.
     running = true;
-    String targetUser = mesosCloud.getSlavesUser();
-    String webUrl = Jenkins.getInstance().getRootUrl();
-    if (webUrl == null) webUrl = System.getenv("JENKINS_URL");
-    StandardUsernamePasswordCredentials credentials = mesosCloud.getCredentials();
-    String principal = credentials == null ? "jenkins" : credentials.getUsername();
-    String secret = credentials == null ? "" : Secret.toString(credentials.getPassword());
-    // Have Mesos fill in the current user.
-    FrameworkInfo framework = FrameworkInfo.newBuilder()
-            .setUser(targetUser == null ? "" : targetUser)
-            .setName(mesosCloud.getFrameworkName())
-            .setRole(mesosCloud.getRole())
-            .setPrincipal(principal)
-            .setCheckpoint(mesosCloud.isCheckpoint())
-            .setWebuiUrl(webUrl != null ? webUrl : "")
-            .build();
-
-    LOGGER.info("Initializing the Mesos driver with options"
-            + "\n" + "Framework Name: " + framework.getName()
-            + "\n" + "Principal: " + principal
-            + "\n" + "Checkpointing: " + framework.getCheckpoint()
-    );
-
-    if (StringUtils.isNotBlank(secret)) {
-      Credential credential = Credential.newBuilder()
-              .setPrincipal(principal)
-              .setSecret(ByteString.copyFromUtf8(secret))
-              .build();
-
-      LOGGER.info("Authenticating with Mesos master with principal " + credential.getPrincipal());
-      driver = new MesosSchedulerDriver(JenkinsScheduler.this, framework, mesosCloud.getMaster(), credential);
-    } else {
-      driver = new MesosSchedulerDriver(JenkinsScheduler.this, framework, mesosCloud.getMaster());
-    }
-    // Start the framework.
-    new Thread(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          Status runStatus = driver.run();
-          if (runStatus != Status.DRIVER_STOPPED) {
-            LOGGER.severe("The Mesos driver was aborted! Status code: " + runStatus.getNumber());
-          } else {
-            LOGGER.info("The Mesos driver was stopped.");
-          }
-        } catch(RuntimeException e) {
-          LOGGER.log(Level.SEVERE, "Caught a RuntimeException", e);
-        } finally {
-          SUPERVISOR_LOCK.lock();
-          if (driver != null) {
-            driver.abort();
-          }
-          driver = null;
-          running = false;
-          SUPERVISOR_LOCK.unlock();
-        }
-      }
-    }).start();
+//    String targetUser = mesosCloud.getSlavesUser();
+//    String webUrl = Jenkins.getInstance().getRootUrl();
+//    if (webUrl == null) webUrl = System.getenv("JENKINS_URL");
+//    StandardUsernamePasswordCredentials credentials = mesosCloud.getCredentials();
+//    String principal = credentials == null ? "jenkins" : credentials.getUsername();
+//    String secret = credentials == null ? "" : Secret.toString(credentials.getPassword());
+//    // Have Mesos fill in the current user.
+//    FrameworkInfo framework = FrameworkInfo.newBuilder()
+//            .setUser(targetUser == null ? "" : targetUser)
+//            .setName(mesosCloud.getFrameworkName())
+//            .setRole(mesosCloud.getRole())
+//            .setPrincipal(principal)
+//            .setCheckpoint(mesosCloud.isCheckpoint())
+//            .setWebuiUrl(webUrl != null ? webUrl : "")
+//            .build();
+//
+//    LOGGER.info("Initializing the Mesos driver with options"
+//            + "\n" + "Framework Name: " + framework.getName()
+//            + "\n" + "Principal: " + principal
+//            + "\n" + "Checkpointing: " + framework.getCheckpoint()
+//    );
+//
+//    if (StringUtils.isNotBlank(secret)) {
+//      Credential credential = Credential.newBuilder()
+//              .setPrincipal(principal)
+//              .setSecret(ByteString.copyFromUtf8(secret))
+//              .build();
+//
+//      LOGGER.info("Authenticating with Mesos master with principal " + credential.getPrincipal());
+//      driver = new MesosSchedulerDriver(JenkinsScheduler.this, framework, mesosCloud.getMaster(), credential);
+//    } else {
+//      driver = new MesosSchedulerDriver(JenkinsScheduler.this, framework, mesosCloud.getMaster());
+//    }
+//    // Start the framework.
+//    new Thread(new Runnable() {
+//      @Override
+//      public void run() {
+//        try {
+//          Status runStatus = driver.run();
+//          if (runStatus != Status.DRIVER_STOPPED) {
+//            LOGGER.severe("The Mesos driver was aborted! Status code: " + runStatus.getNumber());
+//          } else {
+//            LOGGER.info("The Mesos driver was stopped.");
+//          }
+//        } catch(RuntimeException e) {
+//          LOGGER.log(Level.SEVERE, "Caught a RuntimeException", e);
+//        } finally {
+//          SUPERVISOR_LOCK.lock();
+//          if (driver != null) {
+//            driver.abort();
+//          }
+//          driver = null;
+//          running = false;
+//          SUPERVISOR_LOCK.unlock();
+//        }
+//      }
+//    }).start();
   }
 
   public synchronized void stop() {
@@ -202,13 +213,62 @@ public class JenkinsScheduler implements Scheduler {
   }
 
   public synchronized void requestJenkinsSlave(Mesos.SlaveRequest request, Mesos.SlaveResult result) {
-    LOGGER.info("Enqueuing jenkins slave request");
-    requests.add(new Request(request, result));
-    if (driver != null) {
-      // Ask mesos to send all offers, even the those we declined earlier.
-      // See comment in resourceOffers() for further details.
-      driver.reviveOffers();
-    }
+//    LOGGER.info("Enqueuing jenkins slave request");
+//    requests.add(new Request(request, result));
+//    if (driver != null) {
+//      // Ask mesos to send all offers, even the those we declined earlier.
+//      // See comment in resourceOffers() for further details.
+//      driver.reviveOffers();
+//    }
+    String jenkinsCommand2Run = generateJenkinsCommand2Run(
+        request.mem,
+        request.slaveInfo.getJvmArgs(),
+        request.slaveInfo.getJnlpArgs(),
+        request.slave.name);
+    
+
+    JSONParser parser = new JSONParser();
+    
+    try {
+      
+      Object obj = parser.parse(new FileReader(
+              Jenkins.getInstance().getRootDir() + "/" + "marathon.json"));
+
+      org.json.simple.JSONObject jsonObject = (org.json.simple.JSONObject) obj;
+      
+      jsonObject.put("cmd", jenkinsCommand2Run);
+      
+      //org.json.simple.JSONObject jnlpJarUrlJson = (org.json.simple.JSONObject) parser.parse("\"" + joinPaths(jenkinsMaster, SLAVE_JAR_URI_SUFFIX) + "\"");
+      
+       
+     
+      JSONArray jsonArray = (JSONArray) jsonObject.get("uris");
+      
+      JsonPrimitive element = new JsonPrimitive(joinPaths(jenkinsMaster, SLAVE_JAR_URI_SUFFIX));
+      
+      jsonArray.add(element);  
+      
+      System.out.println("json is " +jsonObject.toString());
+      
+      String postUrl="http://127.0.0.1:8080/v2/apps";// put in your url
+      
+      
+      
+      
+   
+      HttpPost post = new HttpPost(postUrl);
+      StringEntity  postingString = new StringEntity(jsonObject.toString());//convert your pojo to   json
+      post.setEntity(postingString);
+      post.setHeader("Content-type", "application/json");
+      DefaultHttpClient httpClient = new DefaultHttpClient();
+
+      HttpResponse response = httpClient.execute(post);
+      System.out.println("response is " + response.toString());
+      
+
+  } catch (Exception e) {
+      e.printStackTrace();
+  }
   }
 
   public boolean reachedMinimumTimeToLive() {
